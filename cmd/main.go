@@ -7,10 +7,9 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/joker0/renvalmart/config"
+	"github.com/joker0/renvalmart/internal/app/models"
 	"github.com/joker0/renvalmart/internal/app/routes"
-	"github.com/joker0/renvalmart/internal/model"
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -32,11 +31,13 @@ func main() {
 	}
 
 	// Set up middleware
-	e.Use(middleware.Logger())
-	e.Use(middleware.Recover())
+	// e.Use(middleware.Logger())
+	// e.Use(middleware.Recover())
 
 	// Define your API routes
-	routes.RegisterItemRoutes(e, db) // Implement your route initialization function
+	routes.RegisterItemRoutes(e, db)
+	routes.RegisterSupplierRoutes(e, db)
+	routes.RegisterStockRoutes(e, db)
 
 	// Start the Echo server
 	port := os.Getenv("PORT") // You can set the port using an environment variable
@@ -89,14 +90,20 @@ func LoadConfig() (config.DatabaseConfig, error) {
 
 func InitializeDatabase(config config.DatabaseConfig) (*gorm.DB, error) {
 	// Initialize the database connection
-	db, err := gorm.Open(postgres.Open(config), &gorm.Config{})
+	connectionString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable TimeZone=Asia/Shanghai",
+		config.DBHost,
+		config.DBPort,
+		config.DBUsername,
+		config.DBPassword,
+		config.DBName)
+	db, err := gorm.Open(postgres.Open(connectionString), &gorm.Config{})
 
 	if err != nil {
 		return nil, err
 	}
 
 	// Migrate the database schemas (run database migrations here)
-	db.AutoMigrate(&model.Item{}) // Uncomment and replace with your model
+	db.AutoMigrate(&models.Item{}, &models.Stock{}, &models.Supplier{}) // Uncomment and replace with your model
 
 	return db, nil
 }
