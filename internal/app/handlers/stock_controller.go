@@ -42,9 +42,11 @@ func (sc *StockController) CreateStock(c echo.Context) error {
 // @Success 200 {object} models.Stock
 // @Router /stocks/{id} [get]
 func (sc *StockController) GetStock(c echo.Context) error {
-	id := c.Param("id")
-	stock := new(models.Stock)
-	if err := sc.DB.First(stock, id).Error; err != nil {
+	stockID := c.Param("id")
+
+	var stock models.Stock
+
+	if err := sc.DB.Preload("Item").Preload("Supplier").Where("id = ?", stockID).First(&stock).Error; err != nil {
 		return c.JSON(http.StatusNotFound, err)
 	}
 	return c.JSON(http.StatusOK, stock)
@@ -81,7 +83,7 @@ func (sc *StockController) UpdateStock(c echo.Context) error {
 // @Router /stocks [get]
 func (sc *StockController) GetStocks(c echo.Context) error {
 	stocks := []models.Stock{}
-	if err := sc.DB.Find(&stocks).Error; err != nil {
+	if err := sc.DB.Preload("Item").Preload("Supplier").Find(&stocks).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, stocks)
