@@ -9,6 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// @title Item API
+// @version 1.0
+// @description API for managing items
+
 // ItemController handles CRUD operations for items
 type ItemController struct {
 	DB *gorm.DB
@@ -33,7 +37,27 @@ func (ic *ItemController) CreateItem(c echo.Context) error {
 	return c.JSON(http.StatusCreated, item)
 }
 
-// GetItem retrieves an item by ID
+// @Summary Get all items
+// @Description Get a list of all items
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.Item
+// @Router /items [get]
+func (ic *ItemController) GetItems(c echo.Context) error {
+	items := []models.Item{}
+	if err := ic.DB.Find(&items).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, items)
+}
+
+// @Summary Get an item by ID
+// @Description Get an item by its ID
+// @Accept json
+// @Produce json
+// @Param id path int true "Item ID"
+// @Success 200 {object} models.Item
+// @Router /items/{id} [get]
 func (ic *ItemController) GetItem(c echo.Context) error {
 	id := c.Param("id")
 	item := new(models.Item)
@@ -43,7 +67,14 @@ func (ic *ItemController) GetItem(c echo.Context) error {
 	return c.JSON(http.StatusOK, item)
 }
 
-// UpdateItem updates an item by ID
+// @Summary Update an item by ID
+// @Description Update an existing item by its ID
+// @Accept json
+// @Produce json
+// @Param id path int true "Item ID"
+// @Param input body UpdateItemRequest true "Updated item data"
+// @Success 200 {object} models.Item
+// @Router /items/{id} [put]
 func (ic *ItemController) UpdateItem(c echo.Context) error {
 	id := c.Param("id")
 	item := new(models.Item)
@@ -59,7 +90,13 @@ func (ic *ItemController) UpdateItem(c echo.Context) error {
 	return c.JSON(http.StatusOK, item)
 }
 
-// DeleteItem soft-deletes an item by ID
+// @Summary Delete an item by ID
+// @Description Delete an item by its ID
+// @Accept json
+// @Produce json
+// @Param id path int true "Item ID"
+// @Success 204 "No Content"
+// @Router /items/{id} [delete]
 func (ic *ItemController) DeleteItem(c echo.Context) error {
 	id := c.Param("id")
 	item := new(models.Item)
