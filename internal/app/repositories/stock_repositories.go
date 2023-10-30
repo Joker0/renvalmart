@@ -27,7 +27,7 @@ func (sr *StockRepository) CreateStock(stock *models.Stock) error {
 // GetStocks retrieves a list of stocks from the database
 func (sr *StockRepository) GetStocks() ([]models.Stock, error) {
 	var stocks []models.Stock
-	result := sr.DB.Find(&stocks)
+	result := sr.DB.Preload("Item").Preload("Supplier").Find(&stocks)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -37,7 +37,7 @@ func (sr *StockRepository) GetStocks() ([]models.Stock, error) {
 // GetStockByID retrieves a stock by its ID
 func (sr *StockRepository) GetStockByID(id int) (*models.Stock, error) {
 	stock := new(models.Stock)
-	result := sr.DB.Where("id = ?", id).First(stock)
+	result := sr.DB.Where("id = ?", id).Preload("Item").Preload("Supplier").First(stock)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -45,7 +45,9 @@ func (sr *StockRepository) GetStockByID(id int) (*models.Stock, error) {
 }
 
 // UpdateStock updates a stock in the database
-func (sr *StockRepository) UpdateStock(stock *models.Stock) error {
+func (sr *StockRepository) UpdateStock(stock *models.Stock, itemid, supllierid int) error {
+	stock.ItemID = itemid
+	stock.SupplierID = supllierid
 	result := sr.DB.Save(stock)
 	if result.Error != nil {
 		return result.Error

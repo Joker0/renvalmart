@@ -63,14 +63,18 @@ func (sc *StockController) GetStock(c echo.Context) error {
 // @Router /stocks/{id] [put]
 func (sc *StockController) UpdateStock(c echo.Context) error {
 	id, _ := strconv.Atoi(c.Param("id"))
+	itemID, _ := strconv.Atoi(c.QueryParam("item_id"))
+	supplierID, _ := strconv.Atoi(c.QueryParam("supplier_id"))
+
 	stock, err := repositories.NewStockRepository(sc.DB).GetStockByID(id)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, err)
 	}
+
 	if err := c.Bind(stock); err != nil {
 		return err
 	}
-	if err := repositories.NewStockRepository(sc.DB).UpdateStock(stock); err != nil {
+	if err := repositories.NewStockRepository(sc.DB).UpdateStock(stock, itemID, supplierID); err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, stock)
