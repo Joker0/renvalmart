@@ -1,17 +1,15 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/joker0/renvalmart/config"
 	"github.com/joker0/renvalmart/database"
 	_ "github.com/joker0/renvalmart/docs"
-	middlewares "github.com/joker0/renvalmart/internal/app/middlewares"
+	jwtmiddleware "github.com/joker0/renvalmart/internal/app/middlewares"
 	"github.com/joker0/renvalmart/internal/app/models"
 	"github.com/joker0/renvalmart/internal/app/routes"
 	"github.com/joker0/renvalmart/seeds"
@@ -51,30 +49,23 @@ func main() {
 		seeds.SeedStocks(db)
 	}
 
-	// Set up middleware
+	//Set up middleware
 	e.Use(middleware.Logger())
+	e.Pre(middleware.RemoveTrailingSlash())
+	e.Use(middleware.TimeoutWithConfig(middleware.TimeoutConfig{
+		Timeout: 2 * time.Second,
+	}))
 	e.Use(middleware.Recover())
+
+	routes.RegisterAuthRoutes(e, db)
+
+	e.Use(jwtmiddleware.AuthMiddleware())
 
 	// Define your API routes
 	routes.RegisterItemRoutes(e, db)
 	routes.RegisterSupplierRoutes(e, db)
 	routes.RegisterStockRoutes(e, db)
 	routes.RegisterUserRoutes(e, db)
-	routes.RegisterAuthRoutes(e, db)
-
-	e.Use(middlewares.AuthMiddleware())
-
-	e.GET("/", func(c echo.Context) error {
-		token, ok := c.Get("user").(*jwt.Token) // by default token is stored under `user` key
-		if !ok {
-			return errors.New("JWT token missing or invalid")
-		}
-		claims, ok := token.Claims.(jwt.MapClaims) // by default claims is of type `jwt.MapClaims`
-		if !ok {
-			return errors.New("failed to cast claims as jwt.MapClaims")
-		}
-		return c.JSON(http.StatusOK, claims)
-	})
 
 	// Start the Echo server
 	port := os.Getenv("PORT") // You can set the port using an environment variable
