@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/joker0/renvalmart/internal/app/models"
+	"github.com/joker0/renvalmart/internal/app/repositories"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -31,7 +33,7 @@ func (ic *ItemController) CreateItem(c echo.Context) error {
 	if err := c.Bind(item); err != nil {
 		return err
 	}
-	if err := ic.DB.Create(item).Error; err != nil {
+	if err := repositories.NewItemRepository(ic.DB).CreateItem(item); err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusCreated, item)
@@ -44,8 +46,8 @@ func (ic *ItemController) CreateItem(c echo.Context) error {
 // @Success 200 {array} models.Item
 // @Router /items [get]
 func (ic *ItemController) GetItems(c echo.Context) error {
-	items := []models.Item{}
-	if err := ic.DB.Find(&items).Error; err != nil {
+	items, err := repositories.NewItemRepository(ic.DB).GetItems()
+	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, items)
@@ -59,9 +61,9 @@ func (ic *ItemController) GetItems(c echo.Context) error {
 // @Success 200 {object} models.Item
 // @Router /items/{id} [get]
 func (ic *ItemController) GetItem(c echo.Context) error {
-	id := c.Param("id")
-	item := new(models.Item)
-	if err := ic.DB.First(item, id).Error; err != nil {
+	id, _ := strconv.Atoi(c.Param("id"))
+	item, err := repositories.NewItemRepository(ic.DB).GetItemByID(id)
+	if err != nil {
 		return c.JSON(http.StatusNotFound, err)
 	}
 	return c.JSON(http.StatusOK, item)
@@ -76,15 +78,15 @@ func (ic *ItemController) GetItem(c echo.Context) error {
 // @Success 200 {object} models.Item
 // @Router /items/{id} [put]
 func (ic *ItemController) UpdateItem(c echo.Context) error {
-	id := c.Param("id")
-	item := new(models.Item)
-	if err := ic.DB.First(item, id).Error; err != nil {
+	id, _ := strconv.Atoi(c.Param("id"))
+	item, err := repositories.NewItemRepository(ic.DB).GetItemByID(id)
+	if err != nil {
 		return c.JSON(http.StatusNotFound, err)
 	}
 	if err := c.Bind(item); err != nil {
-		return err
+		return c.JSON(http.StatusBadRequest, "Invalid request")
 	}
-	if err := ic.DB.Save(item).Error; err != nil {
+	if err := repositories.NewItemRepository(ic.DB).UpdateItem(item); err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, item)

@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/joker0/renvalmart/internal/app/models"
+	"github.com/joker0/renvalmart/internal/app/repositories"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 )
@@ -25,10 +27,14 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 	if err := c.Bind(user); err != nil {
 		return err
 	}
-	if err := uc.DB.Create(user).Error; err != nil {
+	if err := repositories.NewUserRepository(uc.DB).CreateUser(user); err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
-	return c.JSON(http.StatusCreated, user)
+	return c.JSON(http.StatusCreated, models.UserResponse{
+		Name:  user.Name,
+		Email: user.Email,
+		Role:  user.Role,
+	})
 }
 
 // @Summary Get all users
@@ -38,8 +44,8 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 // @Success 200 {array} models.User
 // @Router /users [get]
 func (uc *UserController) GetUsers(c echo.Context) error {
-	users := []models.User{}
-	if err := uc.DB.Find(&users).Error; err != nil {
+	users, err := repositories.NewUserRepository(uc.DB).GetUsers()
+	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, users)
@@ -53,28 +59,12 @@ func (uc *UserController) GetUsers(c echo.Context) error {
 // @Success 200 {object} models.User
 // @Router /users/{id} [get]
 func (uc *UserController) GetUser(c echo.Context) error {
-	id := c.Param("id")
-	user := new(models.User)
-	if err := uc.DB.First(user, id).Error; err != nil {
+	id, _ := strconv.Atoi(c.Param("id"))
+	user, err := repositories.NewUserRepository(uc.DB).FindUserByID(id)
+	if err != nil {
 		return c.JSON(http.StatusNotFound, err)
 	}
 	return c.JSON(http.StatusOK, user)
-}
-
-// @Summary Get a user by name
-// @Description Get a user by its name
-// @Accept json
-// @Produce json
-// @Param name path string true "User name"
-// @Success 200 {object} models.User
-// @Router /users/{name} [get]
-func (uc *UserController) GetUserByName(c echo.Context) (*models.User, error) {
-	name := c.Param("name")
-	user := new(models.User)
-	if err := uc.DB.First(user, name).Error; err != nil {
-		return nil, c.JSON(http.StatusNotFound, err)
-	}
-	return user, nil
 }
 
 // @Summary Update a user by ID
@@ -94,7 +84,7 @@ func (uc *UserController) UpdateUser(c echo.Context) error {
 	if err := c.Bind(user); err != nil {
 		return err
 	}
-	if err := uc.DB.Save(user).Error; err != nil {
+	if err := repositories.NewUserRepository(uc.DB).UpdateUser(user).Error; err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, user)
@@ -113,7 +103,7 @@ func (uc *UserController) DeleteUser(c echo.Context) error {
 	if err := uc.DB.First(user, id).Error; err != nil {
 		return c.JSON(http.StatusNotFound, err)
 	}
-	if err := uc.DB.Delete(user).Error; err != nil {
+	if err := repositories.NewUserRepository(uc.DB).DeleteUser(user); err != nil {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.NoContent(http.StatusNoContent)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/joker0/renvalmart/internal/app/models"
+	"github.com/joker0/renvalmart/internal/app/repositories"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
@@ -14,19 +15,17 @@ import (
 	"time"
 )
 
-var jwtSecret = []byte(os.Getenv("JWT_Secret_Key"))
-
 // TokenClaims struct for JWT claims
 type TokenClaims struct {
 	ID   uint   `json:"id"`
 	Role string `json:"role"`
+	Name string `json:"name"`
 	jwt.RegisteredClaims
 }
 
 // AuthController handles authentication
 type AuthController struct {
-	UserRepository UserController
-	DB             *gorm.DB
+	DB *gorm.DB
 }
 
 // Register handles user registration
@@ -44,7 +43,7 @@ func (ac *AuthController) Register(c echo.Context) error {
 	user.Password = string(hashedPassword)
 
 	// Save the user in your database
-	if err := ac.UserRepository.CreateUser(c); err != nil {
+	if err := repositories.NewAuthRepository(ac.DB).CreateUser(user); err != nil {
 		return c.JSON(http.StatusInternalServerError, "Failed to register user")
 	}
 
@@ -58,8 +57,7 @@ func (ac *AuthController) Login(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, "Invalid request")
 	}
 
-	// Fetch the user by username or email from the database
-	user, err := ac.UserRepository.GetUserByName(c)
+	user, err := repositories.NewAuthRepository(ac.DB).FindUserByUsername(loginRequest.Username)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, "User not found")
 	}
@@ -71,20 +69,22 @@ func (ac *AuthController) Login(c echo.Context) error {
 	}
 
 	// Generate a JWT token
-	token := ac.generateToken(*user)
+	token := generateToken(user)
 
 	// Return the token and user information
 	return c.JSON(http.StatusOK, map[string]interface{}{
-		"token": token,
-		"user":  user,
+		"message": "Successfully login",
+		"token":   token,
+		"payload": user,
 	})
 }
 
 // generateToken generates a JWT token for a user
-func (ac *AuthController) generateToken(user models.User) string {
+func generateToken(user *models.User) string {
 	claims := TokenClaims{
 		ID:   user.ID,
 		Role: user.Role,
+		Name: user.Name,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -94,7 +94,7 @@ func (ac *AuthController) generateToken(user models.User) string {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(jwtSecret)
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_Secret_Key")))
 	if err != nil {
 		panic(err)
 	}
