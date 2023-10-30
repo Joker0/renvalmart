@@ -31,6 +31,20 @@ func (uc *UserController) CreateUser(c echo.Context) error {
 	return c.JSON(http.StatusCreated, user)
 }
 
+// @Summary Get all users
+// @Description Get a list of all users
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.User
+// @Router /users [get]
+func (uc *UserController) GetUsers(c echo.Context) error {
+	users := []models.User{}
+	if err := uc.DB.Find(&users).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, err)
+	}
+	return c.JSON(http.StatusOK, users)
+}
+
 // @Summary Get a user by ID
 // @Description Get a user by its ID
 // @Accept json
@@ -45,6 +59,22 @@ func (uc *UserController) GetUser(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, err)
 	}
 	return c.JSON(http.StatusOK, user)
+}
+
+// @Summary Get a user by name
+// @Description Get a user by its name
+// @Accept json
+// @Produce json
+// @Param name path string true "User name"
+// @Success 200 {object} models.User
+// @Router /users/{name} [get]
+func (uc *UserController) GetUserByName(c echo.Context) (*models.User, error) {
+	name := c.Param("name")
+	user := new(models.User)
+	if err := uc.DB.First(user, name).Error; err != nil {
+		return nil, c.JSON(http.StatusNotFound, err)
+	}
+	return user, nil
 }
 
 // @Summary Update a user by ID
@@ -68,20 +98,6 @@ func (uc *UserController) UpdateUser(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, user)
-}
-
-// @Summary Get all users
-// @Description Get a list of all users
-// @Accept json
-// @Produce json
-// @Success 200 {array} models.User
-// @Router /users [get]
-func (uc *UserController) GetUsers(c echo.Context) error {
-	users := []models.User{}
-	if err := uc.DB.Find(&users).Error; err != nil {
-		return c.JSON(http.StatusInternalServerError, err)
-	}
-	return c.JSON(http.StatusOK, users)
 }
 
 // @Summary Delete a user by ID

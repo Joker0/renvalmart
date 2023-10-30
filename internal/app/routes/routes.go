@@ -47,8 +47,6 @@ func RegisterUserRoutes(e *echo.Echo, db *gorm.DB) {
 	userController := controllers.UserController{DB: db}
 	userRoutes := e.Group("/users")
 
-	//userRoutes.Use(middleware.AuthMiddleware())
-
 	userRoutes.POST("", userController.CreateUser)
 	userRoutes.GET("", userController.GetUsers)
 	userRoutes.GET("/:id", userController.GetUser)
@@ -56,9 +54,9 @@ func RegisterUserRoutes(e *echo.Echo, db *gorm.DB) {
 	userRoutes.DELETE("/:id", userController.DeleteUser)
 }
 
-// func RegisterAuthRoutes(e *echo.Echo, db *gorm.DB) {
-// 	authRoutes := e.Group("/auth")
-// 	authRoutes.POST("/login", middlewares.AuthMiddleware, authController.Login)
-// 	authRoutes.POST("/register", authController.Register)
-// 	// Other authentication-related routes
-// }
+func RegisterAuthRoutes(e *echo.Echo, db *gorm.DB) {
+	authController := controllers.AuthController{DB: db}
+	authRoutes := e.Group("/auth")
+	authRoutes.POST("/login", authController.Login)
+	authRoutes.POST("/register", authController.Register)
+}

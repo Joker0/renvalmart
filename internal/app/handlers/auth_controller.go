@@ -1,48 +1,103 @@
 package controllers
 
-// import (
-//     "net/http"
+import (
+	"net/http"
+	"os"
 
-// 	"github.com/joker0/renvalmart/internal/app/models"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/joker0/renvalmart/internal/app/models"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 
-// 	"github.com/labstack/echo-jwt/v4"
+	"github.com/labstack/echo/v4"
 
-//     "github.com/labstack/echo/v4"
+	"time"
+)
 
-//     "time"
-// )
+var jwtSecret = []byte(os.Getenv("JWT_Secret_Key"))
 
-// // AuthController handles user authentication and token generation
-// type AuthController struct {
-//     SecretKey []byte // Secret key for JWT token signing
-// }
+// TokenClaims struct for JWT claims
+type TokenClaims struct {
+	ID   uint   `json:"id"`
+	Role string `json:"role"`
+	jwt.RegisteredClaims
+}
 
-// // @Summary Login and generate JWT token
-// // @Description Authenticate the user and return a JWT token
-// // @Accept json
-// // @Produce json
-// // @Param input body LoginRequest true "Login data"
-// // @Success 200 {object} TokenResponse
-// // @Router /auth/login [post]
-// func (ac *AuthController) Login(c echo.Context) error {
-//     // Implement user authentication logic here
-//     // Check user credentials, generate a JWT token, and return it
+// AuthController handles authentication
+type AuthController struct {
+	UserRepository UserController
+	DB             *gorm.DB
+}
 
-//     // For demonstration, we'll use a dummy user ID (123) and generate a token
-//     userID := 123
+// Register handles user registration
+func (ac *AuthController) Register(c echo.Context) error {
+	user := new(models.User)
+	if err := c.Bind(user); err != nil {
+		return c.JSON(http.StatusBadRequest, "Invalid request")
+	}
 
-//     // Create a JWT token with the user's ID
-//     token := echojwt.
-//     claims := token.Claims.(jwt.MapClaims)
-//     claims["user_id"] = userID
-//     claims["exp"] = time.Now().Add(time.Hour * 24).Unix() // Token expiration time
+	// Hash the user's password before storing it
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, "Failed to hash the password")
+	}
+	user.Password = string(hashedPassword)
 
-//     // Sign the token with the secret key
-//     tokenString, err := token.SignedString(ac.SecretKey)
+	// Save the user in your database
+	if err := ac.UserRepository.CreateUser(c); err != nil {
+		return c.JSON(http.StatusInternalServerError, "Failed to register user")
+	}
 
-//     if err != nil {
-//         return c.JSON(http.StatusInternalServerError, err)
-//     }
+	return c.JSON(http.StatusCreated, user)
+}
 
-//     return c.JSON(http.StatusOK, TokenResponse{Token: tokenString})
-// }
+// Login handles user login and generates a JWT token
+func (ac *AuthController) Login(c echo.Context) error {
+	loginRequest := new(models.LoginRequest)
+	if err := c.Bind(loginRequest); err != nil {
+		return c.JSON(http.StatusBadRequest, "Invalid request")
+	}
+
+	// Fetch the user by username or email from the database
+	user, err := ac.UserRepository.GetUserByName(c)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, "User not found")
+	}
+
+	// Compare the provided password with the stored hash
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, "Invalid password")
+	}
+
+	// Generate a JWT token
+	token := ac.generateToken(*user)
+
+	// Return the token and user information
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"token": token,
+		"user":  user,
+	})
+}
+
+// generateToken generates a JWT token for a user
+func (ac *AuthController) generateToken(user models.User) string {
+	claims := TokenClaims{
+		ID:   user.ID,
+		Role: user.Role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "Admin",
+			Subject:   user.Name,
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		panic(err)
+	}
+
+	return tokenString
+}
